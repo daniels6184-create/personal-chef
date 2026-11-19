@@ -1,0 +1,32 @@
+# Nightly encrypted backup of the Neon database, kept as a GitHub Actions artifact for 90 days.
+# Needs: secret BACKUP_DATABASE_URL (a READ-ONLY Neon role), variable AGE_RECIPIENT (public key).
+# The private key never goes to GitHub: only you can decrypt these files.
+name: Backup
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pg_dump 17 and age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -q && sudo apt-get install -yq postgresql-client-17 age
+      - name: Dump and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          AGE_RECIPIENT: ${{ vars.AGE_RECIPIENT }}
+        run: |
+          export PATH=/usr/lib/postgresql/17/bin:$PATH
+          scripts/backup.sh "personal-chef-$(date -u +%F).dump.age"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: "*.dump.age"
+          retention-days: 90
+          if-no-files-found: error

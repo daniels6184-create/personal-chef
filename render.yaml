@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: personal-chef
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL        # Neon connection string (pooled not required)
+        sync: false
+      - key: APP_PASSWORD        # long and unique; the passkey becomes the everyday sign-in
+        sync: false
+      - key: APP_ORIGIN          # e.g. https://personal-chef.onrender.com - passkeys are tied to it
+        sync: false
